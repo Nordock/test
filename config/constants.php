@@ -13,5 +13,6 @@ return [
         'active' => 1,
         'deleted' => 9
     ],
-    'pdftotext' => '/usr/local/bin/pdftotext'
+    'pdftotext' => '/usr/local/bin/pdftotext',
+    'tesseract_testdata_dir' => '/usr/local/share/tessdata'
 ];

@@ -46,4 +46,8 @@ Route::middleware(['auth'])->group(function () {
   Route::get('report', [ 'as' => 'report.index', 'uses' => 'ReportController@index']);
   Route::post('report', [ 'as' => 'report.report', 'uses' => 'ReportController@report']);
   Route::post('report/download', [ 'as' => 'report.download', 'uses' => 'ReportController@download']);
+
+  // DRIVER
+  Route::get('driver', [ 'as' => 'driver.search', 'uses' => 'DriverController@search']);
+  Route::get('driver-name', [ 'as' => 'driver.searchname', 'uses' => 'DriverController@searchName']);
 });

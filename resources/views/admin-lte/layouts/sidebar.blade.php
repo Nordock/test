@@ -33,7 +33,9 @@
       <li class="header">MENU</li>
       <!-- Optionally, you can add icons to the links -->
       <li {{ (str_is('dashboard', Route::currentRouteName()) ? 'class=active' : '') }}><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> <span>Dashboard</span></a></li>
+      @if(Auth::user()->type == config('constants.userType.superadmin'))
       <li {{ (str_is('user.*', Route::currentRouteName()) ? 'class=active' : '') }}><a href="{{ route('user.index') }}"><i class="fa fa-users"></i> <span>Users</span></a></li>
+      @endif
       <li {{ (str_is('upload.*', Route::currentRouteName()) ? 'class=active' : '') }}><a href="{{ route('upload.index') }}"><i class="fa fa-edit"></i> <span>Upload Transaction</span></a></li>
       <li {{ (str_is('hincomecal.*', Route::currentRouteName()) ? 'class=active' : '') }}><a href="{{ route('hincomecal.index') }}"><i class="fa fa-credit-card"></i> <span>Transactions</span></a></li>
       <li {{ (str_is('report.*', Route::currentRouteName()) ? 'class=active' : '') }}><a href="{{ route('report.index') }}"><i class="fa fa-pie-chart"></i> <span>Report</span></a></li>

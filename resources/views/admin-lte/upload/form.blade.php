@@ -27,7 +27,7 @@
         {{ session('status') }}
     </div>
 @endif
-<form role="form" method="POST" enctype="multipart/form-data" action="{{ route('hincomecal.store') }}">
+<form role="form" id="form-upload" method="POST" enctype="multipart/form-data" action="{{ route('hincomecal.store') }}">
   {{ csrf_field() }}
   <div class="row">
     <!-- left column -->
@@ -47,6 +47,14 @@
             </select>
           </div>
           <div class="form-group">
+            <label for="driver_name">Driver's Name</label>
+            <input class="form-control" type="text" id="driver_name" name="driver_name" value="{{ old('driver_name') }}"/>
+          </div>
+          <div class="form-group">
+            <label for="driver_id_card">Driver's ID Card No.</label>
+            <input class="form-control" type="text" id="driver_id_card" name="driver_id_card" value="{{ old('driver_id_card') }}"/>
+          </div>
+          <div class="form-group">
             <label for="photo">Files</label>
             <div class="input-group">
               <!-- <input type="file" name="file" /> -->
@@ -55,6 +63,10 @@
             <p class="help-block">Format file allowed : png, jpg, pdf.</p>
           </div>
           <div class="form-group">
+            <div class="input-group pull-right">
+              <a class="add-row btn btn-primary" href="#">+ Add row</a>
+            </div>
+            <br /><br />
             <table class="table-row table table-bordered" id="GOJEK">
               <thead>
                 <tr>
@@ -134,6 +146,8 @@
 <link rel="stylesheet" href="{{ asset("/bower_components/bootstrap-datepicker/dist/css/bootstrap-datepicker.min.css") }}">
 <!-- Sweet Alert -->
 <link rel="stylesheet" href="{{ asset("/bower_components/bootstrap-sweetalert/dist/sweetalert.css") }}">
+<!-- JQuery UI -->
+<link rel="stylesheet" href="{{ asset("/bower_components/jquery-ui/themes/base/jquery-ui.min.css") }}">
 <!-- Dropzone -->
 <link href="{{ asset('assets/vendor/dropzone/dropzone.min.css') }}" rel="stylesheet" type="text/css"/>
 @endsection
@@ -143,6 +157,8 @@
 <script src="{{ asset("/bower_components/bootstrap-datepicker/dist/js/bootstrap-datepicker.min.js") }}"></script>
 <!-- Sweet Alert -->
 <script src="{{ asset("/bower_components/bootstrap-sweetalert/dist/sweetalert.js") }}"></script>
+<!-- JQuery UI -->
+<script src="{{ asset("/bower_components/jquery-ui/jquery-ui.min.js") }}"></script>
 <!-- Dropzone -->
 <script src="{{ asset('assets/vendor/dropzone/dropzone.min.js') }}"></script>
 
@@ -155,10 +171,100 @@ function uuidv4() {
 }
 
 $(document).ready(function() {
+  // Initiate Datatable
+  var gojekTable = $('#GOJEK').DataTable({
+    paging: false,
+    searching: false,
+    info: false
+  });
+  var grabTable = $('#GRAB').DataTable({
+    paging: false,
+    searching: false,
+    info: false
+  });
+
+  // Add New Row
+  $('.add-row').on('click', function(e) {
+    e.preventDefault();
+
+    var uuid = uuidv4();
+    if ($('#vendor').val() === 'GOJEK') {
+      var tableData = [];
+      var fieldNames = [
+        'date',
+        'trx_type',
+        'amount',
+        'trx_value',
+        'trx_cost_value',
+        'workdays',
+      ];
+      var fieldLength = fieldNames.length;
+      for (var x = 0; x < fieldLength; x += 1) {
+        tableData.push(`
+          <span class="text-${fieldNames[x]}-${uuid} text-${uuid}"></span>
+          <input type="text" required name="${fieldNames[x]}[]" class="input-${fieldNames[x]}-${uuid} hidden row-${uuid} form-control" />
+        `);
+      }
+
+      tableData.push(`
+        <a class="save-row save-${uuid} hidden" data-id="${uuid}" href="#"><i class="fa fa-check"></i></a>
+        <a class="edit-row edit-${uuid}" data-id="${uuid}" href="#"><i class="fa fa-edit"></i></a>
+        <a class="remove-row remove-${uuid}" href="#"><i class="fa fa-trash"></i></a>
+      `);
+
+      gojekTable.row.add(tableData).draw(false);
+    } else {
+      var tableData = [];
+      var fieldNames = [
+        'date',
+        'amount',
+        'incentive',
+        'other_income',
+        'commission',
+        'rental_cost',
+        'adjustment',
+        'workdays',
+      ];
+      var fieldLength = fieldNames.length;
+      for (var x = 0; x < fieldLength; x += 1) {
+        tableData.push(`
+          <span class="text-${fieldNames[x]}-${uuid} text-${uuid}"></span>
+          <input type="text" required name="${fieldNames[x]}[]" class="input-${fieldNames[x]}-${uuid} hidden row-${uuid} form-control" />
+        `);
+      }
+
+      tableData.push(`
+        <a class="save-row save-${uuid} hidden" data-id="${uuid}" href="#"><i class="fa fa-check"></i></a>
+        <a class="edit-row edit-${uuid}" data-id="${uuid}" href="#"><i class="fa fa-edit"></i></a>
+        <a class="remove-row remove-${uuid}" href="#"><i class="fa fa-trash"></i></a>
+      `);
+
+      grabTable.row.add(tableData).draw(false);
+    }
+  });
+  
+  // Autocomplete Driver Name
+  $("#driver_name").autocomplete({
+    source: "{{ route('driver.search') }}",
+    minLength: 2,
+    select: function( event, ui ) {
+      $("#driver_name").val(ui.item.driver_name);
+      $("#driver_id_card").val(ui.item.driver_id_card);
+      return false;
+    }
+  }).autocomplete( "instance" )._renderItem = function( ul, item ) {
+    return $( "<li>" )
+      .append( "<div>" + item.driver_name + " / " + item.driver_id_card + " / " + item.id_applicator + "</div>" )
+      .appendTo( ul );
+  };
+
+  // Clear table if vendor is changed
   $('#vendor').on('change', function() {
     $('.table-row').addClass('hidden');
     $('#' + $(this).val()).removeClass('hidden');
-    $('.table-row tbody').empty();
+    
+    gojekTable.rows().remove().draw();
+    grabTable.rows().remove().draw();
   });
 
   var fieldNames = [
@@ -220,7 +326,7 @@ $(document).ready(function() {
       var rowLength = dataRow[i].length;
       for (var a = 0; a < rowLength; a += 1) {
         var uuid = uuidv4();
-        var tableData = '';
+        var tableData = [];
         var fieldNames = [
           'date',
           'trx_type',
@@ -231,24 +337,19 @@ $(document).ready(function() {
         ];
         var fieldLength = fieldNames.length;
         for (var x = 0; x < fieldLength; x += 1) {
-          tableData += `
-            <td>
-              <span class="text-${fieldNames[x]}-${uuid} text-${uuid}">${dataRow[i][a][fieldNames[x]]}</span>
-              <input type="text" required name="${fieldNames[x]}[]" class="input-${fieldNames[x]}-${uuid} hidden row-${uuid} form-control" value="${dataRow[i][a][fieldNames[x]]}" />
-            </td>
-          `;
+          tableData.push(`
+            <span class="text-${fieldNames[x]}-${uuid} text-${uuid}">${dataRow[i][a][fieldNames[x]]}</span>
+            <input type="text" required name="${fieldNames[x]}[]" class="input-${fieldNames[x]}-${uuid} hidden row-${uuid} form-control" value="${dataRow[i][a][fieldNames[x]]}" />
+          `);
         }
 
-        $('#GOJEK tbody:last-child').append(`
-          <tr>
-            ${tableData}
-            <td class="text-center">
-              <a class="save-row save-${uuid} hidden" data-id="${uuid}" href="#"><i class="fa fa-check"></i></a>
-              <a class="edit-row edit-${uuid}" data-id="${uuid}" href="#"><i class="fa fa-edit"></i></a>
-              <a class="remove-row remove-${uuid}" href="#"><i class="fa fa-trash"></i></a>
-            </td>
-          </tr>
+        tableData.push(`
+          <a class="save-row save-${uuid} hidden" data-id="${uuid}" href="#"><i class="fa fa-check"></i></a>
+          <a class="edit-row edit-${uuid}" data-id="${uuid}" href="#"><i class="fa fa-edit"></i></a>
+          <a class="remove-row remove-${uuid}" href="#"><i class="fa fa-trash"></i></a>
         `);
+
+        gojekTable.row.add(tableData).draw(false);
       }
     }
   };
@@ -259,7 +360,7 @@ $(document).ready(function() {
       var rowLength = dataRow[i].length;
       for (var a = 0; a < rowLength; a += 1) {
         var uuid = uuidv4();
-        var tableData = '';
+        var tableData = [];
         var fieldNames = [
           'date',
           'amount',
@@ -272,24 +373,19 @@ $(document).ready(function() {
         ];
         var fieldLength = fieldNames.length;
         for (var x = 0; x < fieldLength; x += 1) {
-          tableData += `
-            <td>
-              <span class="text-${fieldNames[x]}-${uuid} text-${uuid}">${dataRow[i][a][fieldNames[x]]}</span>
-              <input type="text" required name="${fieldNames[x]}[]" class="input-${fieldNames[x]}-${uuid} hidden row-${uuid} form-control" value="${dataRow[i][a][fieldNames[x]]}" />
-            </td>
-          `;
+          tableData.push(`
+            <span class="text-${fieldNames[x]}-${uuid} text-${uuid}">${dataRow[i][a][fieldNames[x]]}</span>
+            <input type="text" required name="${fieldNames[x]}[]" class="input-${fieldNames[x]}-${uuid} hidden row-${uuid} form-control" value="${dataRow[i][a][fieldNames[x]]}" />
+          `);
         }
 
-        $('#GRAB tbody:last-child').append(`
-          <tr>
-            ${tableData}
-            <td class="text-center">
-              <a class="save-row save-${uuid} hidden" data-id="${uuid}" href="#"><i class="fa fa-check"></i></a>
-              <a class="edit-row edit-${uuid}" data-id="${uuid}" href="#"><i class="fa fa-edit"></i></a>
-              <a class="remove-row remove-${uuid}" href="#"><i class="fa fa-trash"></i></a>
-            </td>
-          </tr>
+        tableData.push(`
+          <a class="save-row save-${uuid} hidden" data-id="${uuid}" href="#"><i class="fa fa-check"></i></a>
+          <a class="edit-row edit-${uuid}" data-id="${uuid}" href="#"><i class="fa fa-edit"></i></a>
+          <a class="remove-row remove-${uuid}" href="#"><i class="fa fa-trash"></i></a>
         `);
+
+        grabTable.row.add(tableData).draw(false);
       }
     }
   };

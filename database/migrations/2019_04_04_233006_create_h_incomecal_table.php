@@ -17,8 +17,11 @@ class CreateHIncomecalTable extends Migration
             $table->increments('id');
             $table->integer('id_customer')->nullable();
             $table->integer('id_user');
+            $table->string('driver_name');
+            $table->string('driver_id_card');
             $table->integer('id_applicator')->nullable();
             $table->date('date_of_transaction')->nullable();
+            $table->string('time_of_transaction')->nullable();
             $table->integer('work_days')->nullable();
             $table->integer('amount')->nullable()->default('0');
             $table->string('trans_type')->nullable();
@@ -30,6 +33,7 @@ class CreateHIncomecalTable extends Migration
             $table->string('rental_cost')->nullable()->default('0');
             $table->string('adjustment')->nullable()->default('0');
             $table->tinyInteger('is_delete')->default(0);
+            $table->date('submit_date');
             $table->timestamps();
         });
     }

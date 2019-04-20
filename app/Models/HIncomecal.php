@@ -12,4 +12,9 @@ class HIncomecal extends Model
      * @var string
      */
     protected $table = 'h_incomecal';
+
+    public function user()
+    {
+        return $this->belongsTo('App\Models\User', 'id_user');
+    }
 }

@@ -34,9 +34,9 @@
           <tr>
             <th width="13%">Date</th>
             <th width="5%">Amount</th>
+            <th width="10%">Driver's Name</th>
+            <th width="10%">Applicator</th>
             <th width="15%">Trx Type</th>
-            <th width="8%">Trx Value</th>
-            <th width="10%">Trx Cost</th>
             <th width="8%">Incentive</th>
             <th width="10%">Other Income</th>
             <th width="8%">Commission</th>
@@ -78,9 +78,9 @@ $(document).ready(function() {
         columns: [
           { data: 'date_of_transaction', name: 'date_of_transaction' },
           { data: 'amount', name: 'amount' },
+          { data: 'driver_name', name: 'driver_name' },
+          { data: 'id_applicator', name: 'id_applicator' },
           { data: 'trans_type', name: 'trans_type' },
-          { data: 'trans_value', name: 'trans_value' },
-          { data: 'trans_cost_value', name: 'trans_cost_value' },
           { data: 'incentive', name: 'incentive' },
           { data: 'other_income', name: 'other_income' },
           { data: 'commission', name: 'commission' },

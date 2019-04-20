@@ -10,54 +10,88 @@ use Auth;
 
 class DashboardController extends Controller
 {
-    //
+    // Dashboard
     public function index()
     {
-      $fromMonth = date('m', strtotime('-3 months'));;
-      $toMonth = date('m');
-      $fromYear = date('Y', strtotime('-3 months'));
-      $toYear = date('Y');
-      $applicators = [
-        self::$gojek,
-        self::$grab
-      ];
-      $toLastDate = date("Y-m-t", strtotime("$toYear-$toMonth-01"));
-      $fromDate = "$fromYear-$fromMonth-01";
+        $fromMonth = date('m', strtotime('-3 month'));
+        $toMonth = date('m');
+        $fromYear = date('Y', strtotime('-3 month'));
+        $toYear = date('Y');
+        $idApplicator = [self::$gojek, self::$grab]; // GOJEK & GRAB
+        $toLastDate = date("Y-m-t", strtotime("$toYear-$toMonth-01"));
+        $fromDate = "$fromYear-$fromMonth-01";
+        $incomecals = [];
 
-      $incomecals = [];
+        foreach ($idApplicator as $v) {
+            if ($v == self::$gojek) {
+                $selectQueries = DB::raw("
+                    driver_name,
+                    driver_id_card,
+                    id_user,
+                    SUM(work_days) as workdays,
+                    SUM(amount * trans_value) as total_amount
+                ");
+            } else {
+                $selectQueries = DB::raw("
+                    driver_name,
+                    driver_id_card,
+                    id_user,
+                    SUM(work_days) as workdays,
+                    (SUM(amount) + SUM(other_income) + SUM(incentive)) as total_amount
+                ");
+            }
 
-      foreach ($applicators as $v) {
-        if ($v == self::$gojek) {
-            $selectQueries = DB::raw("
-                SUM(work_days) as workdays,
-                SUM(CASE WHEN trans_type LIKE '%CREDIT%' THEN amount ELSE 0 END) as total_amount,
-                SUM(CASE WHEN trans_type LIKE '%DEBIT%' THEN amount ELSE 0 END) as total_expense,
-                MONTH(date_of_transaction) AS month,
-                YEAR(date_of_transaction) AS year
-            ");
-        } else {
-            $selectQueries = DB::raw("
-                SUM(work_days) as workdays,
-                (SUM(amount) + SUM(other_income) + SUM(incentive)) as total_amount,
-                (SUM(commission) + SUM(rental_cost) + SUM(adjustment)) as total_expense,
-                MONTH(date_of_transaction) AS month,
-                YEAR(date_of_transaction) AS year
-            ");
+            $incomecals[$v] = HIncomecal::select($selectQueries)
+                    ->whereBetween('date_of_transaction', [$fromDate, $toLastDate])
+                    ->where('id_applicator', $v)
+                    ->where('is_delete', 0)
+                    ->groupBy('driver_name', 'driver_id_card', 'id_user')
+                    ->get();
         }
+        
+        // Count Work Weeks
+        $workweeks = [];
+        foreach ($incomecals as $v => $incomecal) {
+            foreach ($incomecal as $k => $value) {
+                $submitDate = HIncomecal::select('created_at')
+                                ->where('id_applicator', $v)
+                                ->where('driver_name', $value->driver_name)
+                                ->where('driver_id_card', $value->driver_id_card)
+                                ->where('is_delete', 0)
+                                ->orderBy('created_at', 'DESC')
+                                ->first();
 
-        $incomecals[$v] = HIncomecal::select($selectQueries)
+                $incomecal[$k]->submit_date = $submitDate->created_at;
+                if ($v == self::$gojek) {
+                    $workWeekData = HIncomecal::select('driver_name', 'driver_id_card', 'date_of_transaction')
                         ->whereBetween('date_of_transaction', [$fromDate, $toLastDate])
-                        ->where('id_applicator', $v);
+                        ->where('id_applicator', $v)
+                        ->where('driver_name', $value->driver_name)
+                        ->where('driver_id_card', $value->driver_id_card)
+                        ->where('is_delete', 0)
+                        ->groupBy('driver_name', 'driver_id_card')
+                        ->groupBy('date_of_transaction')
+                        ->get();
+                    
+                    $incomecal[$k]->workdays = count($workWeekData);
+                    $workweeks[$value->driver_name][$value->driver_id_card] = (int) ceil(count($workWeekData) / 7);
+                } else {
+                    $workWeekData = HIncomecal::select(DB::raw("
+                        SUM(work_days) as workdays
+                    "))
+                    ->whereBetween('date_of_transaction', [$fromDate, $toLastDate])
+                        ->where('id_applicator', $v)
+                        ->where('is_delete', 0)
+                        ->where('driver_name', $value->driver_name)
+                        ->where('driver_id_card', $value->driver_id_card)
+                        ->groupBy('driver_name', 'driver_id_card', 'id_applicator')
+                        ->first();
 
-        if (Auth::user()->type == config('constants.userType.salesman')) {
-            $incomecals[$v] = $incomecals[$v]->where('id_user', Auth::user()->id);
+                    $workweeks[$value->driver_name][$value->driver_id_card] = (int) ceil($workWeekData->workdays / 7);
+                }
+            }
         }
 
-        $incomecals[$v] = $incomecals[$v]->groupBy(DB::raw('MONTH(date_of_transaction)'))
-                        ->groupBy(DB::raw('YEAR(date_of_transaction)'))
-                        ->get();
-      }
-
-      return view('admin-lte.dashboard.index', compact('incomecals'));
+        return view('admin-lte.dashboard.index', compact('incomecals', 'workweeks'));
     }
 }
