@@ -20,6 +20,10 @@ class UserController extends Controller
      */
     public function index()
     {
+        if (Auth::user()->type == config('constants.userType.salesman')) {
+            abort(403, 'Unauthorized Access');
+        }
+
         return view('admin-lte.user.index');
     }
 
@@ -66,7 +70,7 @@ class UserController extends Controller
      */
     public function create()
     {
-        return view('admin-lte.user.form', compact('roles'));
+        return view('admin-lte.user.form');
     }
 
     /**

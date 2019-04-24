@@ -47,6 +47,12 @@
                 <label for="driver_id_card">Driver's ID Card No.</label>
                 <input class="form-control" type="text" id="driver_id_card" name="driver_id_card" value="{{ $inputs['driver_id_card'] or old('driver_id_card') }}"/>
               </div>
+              <div class="form-group">
+                <label for="submit_date">Submit Date</label>
+                <select id="submit_date" name="submit_date" class="form-control">
+                  {!! $submit_options !!}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -246,6 +252,7 @@
         select: function( event, ui ) {
           $("#driver_name").val(ui.item.driver_name);
           $("#driver_id_card").val(ui.item.driver_id_card);
+          refreshSubmitdateOptions();
           return false;
         }
       }).autocomplete( "instance" )._renderItem = function( ul, item ) {
@@ -253,6 +260,39 @@
           .append( "<div>" + item.driver_name + " / " + item.driver_id_card + "</div>" )
           .appendTo( ul );
       };
+
+      // Get submit history perdriver
+      $('#driver_name, #driver_id_card').on('keyup', function() {
+        if ($('#driver_name').val() !== '' && $('#driver_id_card').val() !== '') {
+          refreshSubmitdateOptions();
+        }
+      });
+
+      function refreshSubmitdateOptions() {
+        $.ajax({
+          url: "{{ route('hincomecal.submit_date') }}",
+          method: "GET",
+          data: "driver_name=" + $('#driver_name').val() + "&driver_id_card=" + $("#driver_id_card").val(),
+          success: function (response) {
+            var dataLen = response && response.length > 0 ? response.length : 0;
+            $('#submit_date').html('');
+            $('#submit_date').append($('<option/>', {
+                value: '',
+                text : '- Last 4 Months -'
+            }));
+
+            for (var i = 0; i < dataLen; i += 1) {
+              $('#submit_date').append($('<option/>', {
+                value: response[i].submit_date,
+                text : response[i].submit_date
+              }));
+            }
+          },
+          error: function (response) {
+            console.error(response);
+          }
+        });
+      }
     });
   </script>
 @endsection

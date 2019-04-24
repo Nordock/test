@@ -31,28 +31,46 @@ class HIncomecalController extends Controller
     public function data(Request $request)
     {
         DB::statement(DB::raw('set @rownum=0'));
-        $data = DB::table('h_incomecal')
-                ->select([
-                  DB::raw('@rownum := @rownum + 1 AS rownum'),
-                  DB::raw('(CASE WHEN id_applicator = 1 THEN "GO-JEK" ELSE "GRAB" END) AS id_applicator'),
-                  'id',
-                  'id_user',
-                  'date_of_transaction',
-                  'time_of_transaction',
-                  'amount',
-                  'trans_value',
-                  'trans_cost_value',
-                  'trans_type',
-                  'work_days',
-                  'driver_name',
-                  'incentive',
-                  'other_income',
-                  'commission',
-                  'rental_cost',
-                  'adjustment',
-                ])->where('is_delete', 0);
+        $hincomecals = HIncomecal::select([
+            DB::raw('@rownum := @rownum + 1 AS rownum'),
+            DB::raw('(CASE WHEN id_applicator = 1 THEN "GO-JEK" ELSE "GRAB" END) AS id_applicator'),
+            'id',
+            'id_user',
+            'date_of_transaction',
+            'time_of_transaction',
+            'amount',
+            'trans_value',
+            'trans_cost_value',
+            'trans_type',
+            'work_days',
+            'driver_name',
+            'incentive',
+            'other_income',
+            'commission',
+            'rental_cost',
+            'adjustment',
+        ])->where('is_delete', 0);
 
-        $datatables = Datatables::of($data)
+        $datatables = Datatables::of($hincomecals)
+            ->filter(function ($query) use ($request) {
+                if ($request->has('driver_name') && !empty($request->get('driver_name'))) {
+                    $query->where('driver_name', 'like', "%{$request->get('driver_name')}%");
+                }
+
+                if ($request->has('driver_id_card') && !empty($request->get('driver_id_card'))) {
+                    $query->where('driver_id_card', 'like', "%{$request->get('driver_id_card')}%");
+                }
+
+                if ($request->has('id_applicator') && !empty($request->get('id_applicator'))) {
+                    $query->where('id_applicator', $request->get('id_applicator'));
+                }
+            })
+            ->editColumn('id', function ($data) {
+                if (Auth::user()->id !== $data->id_user) {
+                    return '';
+                }
+                return '<input type="checkbox" class="delete-bulk" value="' . $data->id .'" />';
+            })
             ->editColumn('date_of_transaction', function ($data) {
                 if (!empty($data->time_of_transaction)) {
                     return $data->date_of_transaction .' '. $data->time_of_transaction;
@@ -70,15 +88,7 @@ class HIncomecalController extends Controller
 
                 return $act;
             })
-            ->removeColumn('id')
-            ->rawColumns(['action']);
-
-        if ($keyword = $request->get('search')['value']) {
-            $datatables->filterColumn('rownum', function($query, $keyword) {
-                    $sql = '@rownum + 1 like ?';
-                    $query->whereRaw($sql, ["%{$keyword}%"]);
-            });
-        }
+            ->rawColumns(['action', 'id']);
 
         return $datatables->make(true);
     }
@@ -186,6 +196,53 @@ class HIncomecalController extends Controller
             return response()->json([]);
         } catch (\Exception $e) {
             return response()->json([], $e->getStatusCode());
+        }
+    }
+
+    /**
+     * Remove the bulk resources from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function destroyBulk(Request $request)
+    {
+        try {
+            $hincomecalTable = (new HIncomecal())->getTable();
+            DB::table($hincomecalTable)->whereIn('id', explode(',', $request->get('ids')))->update([
+                'is_delete' => 1,
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+
+            return response()->json([]);
+        } catch (\Exception $e) {
+            return response()->json([], $e->getStatusCode());
+        }
+    }
+
+    /**
+     * Get submit history.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
+    public function getSubmitHistory(Request $request)
+    {
+        try {
+            if ($request->has('driver_name') && $request->has('driver_id_card')) {
+                $data = HIncomecal::select('submit_date')
+                ->where('driver_name', $request->get('driver_name'))
+                ->where('driver_id_card', $request->get('driver_id_card'))
+                ->where('is_delete', 0)
+                ->groupBy('submit_date', 'driver_name', 'driver_id_card')
+                ->get();
+
+                return response()->json($data);
+            }
+
+            return response()->json([]);
+        } catch (\Exception $e) {
+            return response()->json($e->getMessage());
         }
     }
 }

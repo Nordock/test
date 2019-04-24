@@ -40,7 +40,9 @@ Route::middleware(['auth'])->group(function () {
   Route::get('hincomecal/data', [ 'as' => 'hincomecal.data', 'uses' => 'HIncomecalController@data']);
   Route::get('hincomecal', [ 'as' => 'hincomecal.index', 'uses' => 'HIncomecalController@index']);
   Route::delete('hincomecal/{hincomecal}', [ 'as' => 'hincomecal.destroy', 'uses' => 'HIncomecalController@destroy']);
+  Route::delete('hincomecal', [ 'as' => 'hincomecal.destroy.bulk', 'uses' => 'HIncomecalController@destroyBulk']);
   Route::post('hincomecal', [ 'as' => 'hincomecal.store', 'uses' => 'HIncomecalController@store']);
+  Route::get('hincomecal/submit_date', [ 'as' => 'hincomecal.submit_date', 'uses' => 'HIncomecalController@getSubmitHistory']);
 
   // REPORT
   Route::get('report', [ 'as' => 'report.index', 'uses' => 'ReportController@index']);

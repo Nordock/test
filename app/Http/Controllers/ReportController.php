@@ -20,7 +20,10 @@ class ReportController extends Controller
      */
     public function index(Request $request)
     {
-        return view('admin-lte.report.index');
+        $submitOptions = $this->getSubmitHistoryOptions($request);
+        return view('admin-lte.report.index', [
+            'submit_options' => $submitOptions
+        ]);
     }
 
     /**
@@ -42,14 +45,28 @@ class ReportController extends Controller
             return redirect()->back()->withInput()->withErrors(['No driver were found']);
         }
 
+        // Define filter date report
         $fromMonth = date('m', strtotime('-3 month'));
         $toMonth = date('m');
         $fromYear = date('Y', strtotime('-3 month'));
         $toYear = date('Y');
-        $idApplicator = [self::$gojek, self::$grab]; // GOJEK & GRAB
-        $idUser = Auth::user()->type === config('constants.userType.salesman') ? Auth::user()->id : $request->get('id_user');
         $toLastDate = date("Y-m-t", strtotime("$toYear-$toMonth-01"));
         $fromDate = "$fromYear-$fromMonth-01";
+
+        // Get month by submit date
+        if ($request->has('submit_date') && !empty($request->get('submit_date'))) {
+            if (!empty($getReportDate)) {
+                $fromMonth = date('m', strtotime('-3 month', strtotime($request->get('submit_date'))));
+                $toMonth = date('m', strtotime($request->get('submit_date')));
+                $fromYear = date('Y', strtotime('-3 month', strtotime($request->get('submit_date'))));
+                $toYear = date('Y', strtotime($request->get('submit_date')));
+                $toLastDate = date("Y-m-t", strtotime("$toYear-$toMonth-01"));
+                $fromDate = "$fromYear-$fromMonth-01";
+            }
+        }
+
+        $idApplicator = [self::$gojek, self::$grab]; // GOJEK & GRAB
+        $idUser = Auth::user()->type === config('constants.userType.salesman') ? Auth::user()->id : $request->get('id_user');
         $incomecals = [];
 
         foreach ($idApplicator as $v) {
@@ -169,11 +186,39 @@ class ReportController extends Controller
         }
         
         $inputs = $request->except('_token');
+        $submitOptions = $this->getSubmitHistoryOptions($request);
         return view('admin-lte.report.index', [
             'incomecals' => $newIncomecals,
+            'submit_options' => $submitOptions,
             'workweeks' => $workweeks,
             'inputs' => $inputs
         ]);
+    }
+
+    /**
+     * Get submit history options
+     */
+    public function getSubmitHistoryOptions(Request $request)
+    {
+        $options = '<option value="">- Last 4 Months -</option>';
+        if ($request->has('submit_date') && !empty($request->get('submit_date'))) {
+            $data = HIncomecal::select('submit_date')
+            ->where('driver_name', $request->get('driver_name'))
+            ->where('driver_id_card', $request->get('driver_id_card'))
+            ->where('is_delete', 0)
+            ->groupBy('submit_date', 'driver_name', 'driver_id_card')
+            ->get();
+    
+            foreach ($data as $k => $v) {
+                if ($v->submit_date === $request->get('submit_date')) {
+                    $options .= '<option selected value="'. $v->submit_date .'">'. $v->submit_date .'</option>';
+                } else {
+                    $options .= '<option value="'. $v->submit_date .'">'. $v->submit_date .'</option>';
+                }
+            }
+        }
+
+        return $options;
     }
 
     /**
@@ -195,14 +240,28 @@ class ReportController extends Controller
             return redirect()->back()->withInput()->withErrors(['No driver were found']);
         }
 
+        // Define filter date report
         $fromMonth = date('m', strtotime('-3 month'));
         $toMonth = date('m');
         $fromYear = date('Y', strtotime('-3 month'));
         $toYear = date('Y');
-        $idApplicator = [self::$gojek, self::$grab]; // GOJEK & GRAB
-        $idUser = Auth::user()->type === config('constants.userType.salesman') ? Auth::user()->id : $request->get('id_user');
         $toLastDate = date("Y-m-t", strtotime("$toYear-$toMonth-01"));
         $fromDate = "$fromYear-$fromMonth-01";
+
+        // Get month by submit date
+        if ($request->has('submit_date') && !empty($request->get('submit_date'))) {
+            if (!empty($getReportDate)) {
+                $fromMonth = date('m', strtotime('-3 month', strtotime($request->get('submit_date'))));
+                $toMonth = date('m', strtotime($request->get('submit_date')));
+                $fromYear = date('Y', strtotime('-3 month', strtotime($request->get('submit_date'))));
+                $toYear = date('Y', strtotime($request->get('submit_date')));
+                $toLastDate = date("Y-m-t", strtotime("$toYear-$toMonth-01"));
+                $fromDate = "$fromYear-$fromMonth-01";
+            }
+        }
+        
+        $idApplicator = [self::$gojek, self::$grab]; // GOJEK & GRAB
+        $idUser = Auth::user()->type === config('constants.userType.salesman') ? Auth::user()->id : $request->get('id_user');
         $incomecals = [];
 
         foreach ($idApplicator as $v) {
@@ -244,6 +303,11 @@ class ReportController extends Controller
             $fromDefaultMonth = $fromMonth;
             
             $data = [];
+            if (count ($incomevalue) == 0) {
+                $newIncomecals[$k] = [];
+                continue;
+            }
+            
             for ($i = 0; $i < $lastCountMonths; $i += 1) {
                 $monthIncome = new \stdClass();
                 $monthIncome->workdays = 0;
