@@ -31,7 +31,7 @@
                         </tr>
                         @foreach ($incomecal as $i => $v)
                             @php
-                                $actualWorkDay4Weeks = (int) ceil($v->workdays / $workweeks[$v->driver_name][$v->driver_id_card]) * 4;
+                                $actualWorkDay4Weeks = ceil(($v->workdays / $workweeks[$v->driver_name][$v->driver_id_card]) * 4);
                                 $incomeGross4Weeks = $v->workdays > 0 ? ceil(($v->total_amount / $v->workdays) * $actualWorkDay4Weeks) : 0
                             @endphp
                             <tr>
