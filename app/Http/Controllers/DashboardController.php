@@ -29,7 +29,8 @@ class DashboardController extends Controller
                     driver_id_card,
                     id_user,
                     SUM(work_days) as workdays,
-                    SUM(amount * trans_value) as total_amount
+                    SUM(amount * trans_value) as total_amount,
+                    created_at
                 ");
             } else {
                 $selectQueries = DB::raw("
@@ -37,7 +38,8 @@ class DashboardController extends Controller
                     driver_id_card,
                     id_user,
                     SUM(work_days) as workdays,
-                    (SUM(amount) + SUM(other_income) + SUM(incentive)) as total_amount
+                    (SUM(amount) + SUM(other_income) + SUM(incentive)) as total_amount,
+                    created_at
                 ");
             }
 
@@ -45,10 +47,10 @@ class DashboardController extends Controller
                     ->whereBetween('date_of_transaction', [$fromDate, $toLastDate])
                     ->where('id_applicator', $v)
                     ->where('is_delete', 0)
-                    ->groupBy('driver_name', 'driver_id_card', 'id_user')
+                    ->groupBy('driver_name', 'driver_id_card', 'id_user', 'created_at')
                     ->get();
         }
-        
+
         // Count Work Weeks
         $workweeks = [];
         foreach ($incomecals as $v => $incomecal) {
@@ -72,7 +74,7 @@ class DashboardController extends Controller
                         ->groupBy('driver_name', 'driver_id_card')
                         ->groupBy('date_of_transaction')
                         ->get();
-                    
+
                     $incomecal[$k]->workdays = count($workWeekData);
                     $workweeks[$value->driver_name][$value->driver_id_card] = (int) ceil(count($workWeekData) / 7);
                 } else {

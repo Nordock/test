@@ -106,7 +106,7 @@ class ReportController extends Controller
             $lastCountMonths = 4;
             $fromDefaultYear = $fromYear;
             $fromDefaultMonth = $fromMonth;
-            
+
             $data = [];
             if (count ($incomevalue) == 0) {
                 $newIncomecals[$k] = [];
@@ -133,7 +133,7 @@ class ReportController extends Controller
                                 ->groupBy('driver_name', 'driver_id_card')
                                 ->groupBy('date_of_transaction')
                                 ->get();
-                            
+
                             $val->workdays = count($workWeekData);
                         }
 
@@ -141,7 +141,7 @@ class ReportController extends Controller
                         break;
                     }
                 }
-                
+
                 $data[] = $monthIncome;
 
                 $fromDefaultMonth += 1;
@@ -153,7 +153,7 @@ class ReportController extends Controller
 
             $newIncomecals[$k] = $data;
         }
-        
+
         // Count Work Weeks
         $workweeks = [];
         foreach ($idApplicator as $v) {
@@ -184,7 +184,48 @@ class ReportController extends Controller
                 $workweeks[$v] = isset($workWeekData->workdays) ? (int) ceil($workWeekData->workdays / 7) : 0;
             }
         }
-        
+        // Count average 3 month
+        $av3monthIncGross = [];
+        foreach ($idApplicator as $v) {
+            if ($v == self::$gojek) {
+                $avData1 = HIncomecal::select(DB::raw("
+                      SUM(amount * trans_value) as total_amount,
+                      MONTH(date_of_transaction) AS month,
+                      YEAR(date_of_transaction) AS year
+                    "))
+                    ->whereBetween('date_of_transaction', [$fromDate, $toLastDate])
+                    ->where('id_applicator', $v)
+                    ->where('driver_name', $request->get('driver_name'))
+                    ->where('driver_id_card', $request->get('driver_id_card'))
+                    ->whereRaw('date_of_transaction >= last_day(now()) + interval 1 day - interval 3 month')
+                    ->where('is_delete', 0)
+                    ->groupBy('driver_name', 'driver_id_card')
+                    ->groupBy(DB::raw('MONTH(date_of_transaction)'))
+                    ->groupBy(DB::raw('YEAR(date_of_transaction)'))
+                    ->get();
+
+                $av3monthIncGrosss[$v] += $avData1->total_amount;
+            } else {
+              $avData1 = HIncomecal::select(DB::raw("
+                    (SUM(amount) + SUM(other_income) + SUM(incentive)) as total_amount,
+                    MONTH(date_of_transaction) AS month,
+                    YEAR(date_of_transaction) AS year
+                  "))
+                  ->whereBetween('date_of_transaction', [$fromDate, $toLastDate])
+                  ->where('id_applicator', $v)
+                  ->where('driver_name', $request->get('driver_name'))
+                  ->where('driver_id_card', $request->get('driver_id_card'))
+                  ->whereRaw('date_of_transaction >= last_day(now()) + interval 1 day - interval 3 month')
+                  ->where('is_delete', 0)
+                  ->groupBy('driver_name', 'driver_id_card')
+                  ->groupBy(DB::raw('MONTH(date_of_transaction)'))
+                  ->groupBy(DB::raw('YEAR(date_of_transaction)'))
+                  ->get();
+
+                $av3monthIncGrosss[$v] += $avData1->total_amount;
+            }
+        }
+
         $inputs = $request->except('_token');
         $submitOptions = $this->getSubmitHistoryOptions($request);
         return view('admin-lte.report.index', [
@@ -208,7 +249,7 @@ class ReportController extends Controller
             ->where('is_delete', 0)
             ->groupBy('submit_date', 'driver_name', 'driver_id_card')
             ->get();
-    
+
             foreach ($data as $k => $v) {
                 if ($v->submit_date === $request->get('submit_date')) {
                     $options .= '<option selected value="'. $v->submit_date .'">'. $v->submit_date .'</option>';
@@ -259,7 +300,7 @@ class ReportController extends Controller
                 $fromDate = "$fromYear-$fromMonth-01";
             }
         }
-        
+
         $idApplicator = [self::$gojek, self::$grab]; // GOJEK & GRAB
         $idUser = Auth::user()->type === config('constants.userType.salesman') ? Auth::user()->id : $request->get('id_user');
         $incomecals = [];
@@ -301,13 +342,13 @@ class ReportController extends Controller
             $lastCountMonths = 4;
             $fromDefaultYear = $fromYear;
             $fromDefaultMonth = $fromMonth;
-            
+
             $data = [];
             if (count ($incomevalue) == 0) {
                 $newIncomecals[$k] = [];
                 continue;
             }
-            
+
             for ($i = 0; $i < $lastCountMonths; $i += 1) {
                 $monthIncome = new \stdClass();
                 $monthIncome->workdays = 0;
@@ -329,15 +370,15 @@ class ReportController extends Controller
                                 ->groupBy('driver_name', 'driver_id_card')
                                 ->groupBy('date_of_transaction')
                                 ->get();
-                            
+
                             $val->workdays = count($workWeekData);
                         }
-                        
+
                         $monthIncome = $val;
                         break;
                     }
                 }
-                
+
                 $data[] = $monthIncome;
 
                 $fromDefaultMonth += 1;
@@ -349,7 +390,7 @@ class ReportController extends Controller
 
             $newIncomecals[$k] = $data;
         }
-        
+
         // Count Work Weeks
         $workweeks = [];
         foreach ($idApplicator as $v) {
@@ -380,7 +421,7 @@ class ReportController extends Controller
                 $workweeks[$v] = isset($workWeekData->workdays) ? (int) ceil($workWeekData->workdays / 7) : 0;
             }
         }
-                    
+
         return Excel::download(new ReportExport([
             'incomecals' => $newIncomecals,
             'workweeks' => $workweeks,
